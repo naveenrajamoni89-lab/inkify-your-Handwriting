@@ -1,0 +1,27 @@
+{
+  "name": "inkify-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@fontsource/caveat": "^5.2.0",
+    "@fontsource/dm-sans": "^5.2.0",
+    "@fontsource/indie-flower": "^5.3.0",
+    "@fontsource/kalam": "^5.2.0",
+    "@fontsource/patrick-hand": "^5.2.0",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.468.0",
+    "opentype.js": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}

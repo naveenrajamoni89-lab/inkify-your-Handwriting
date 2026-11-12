@@ -1,0 +1,38 @@
+import { paperIndex } from './engine';
+import React, { useEffect, useRef, useState } from 'react';
+import { savePapers, removePaper, movePaper, togglePaper } from './paper-store';
+
+export default function PaperControls({ paper, settings, setSettings, onPaper, disabled, notify, pageIndex=0, onSaveFit, activePaper }) {
+  const input=useRef(null);const [loading,setLoading]=useState(false);
+  const [thumbnails,setThumbnails]=useState([]);
+  useEffect(()=>{const urls=(paper?.library||[]).map(item=>URL.createObjectURL(item.blob));setThumbnails(urls);return()=>urls.forEach(url=>URL.revokeObjectURL(url));},[paper]);
+  function choose(){input.current.click();}
+  async function upload(event) {
+    const files=Array.from(event.target.files||[]);event.target.value='';if(!files.length)return;setLoading(true);
+    try {const result=await savePapers(files,paper);onPaper(result);setSettings(s=>paper?{...s,paper:'custom'}:{...s,paper:'custom',finish:'white',paperFit:'stretch',margin:130,topMargin:100,rightMargin:90,bottomMargin:100,paperLayoutVersion:2});notify('New papers added to your library and selected. Your earlier papers are still saved.');}
+    catch(e){notify(e.message || 'Could not load this image. Your previous paper is unchanged.');}finally{setLoading(false);}
+  }
+  async function remove(id) {
+    setLoading(true);try{const result=await removePaper(paper,id);onPaper(result);if(!result)setSettings(s=>({...s,paper:s.paper==='custom'?'plain':s.paper}));notify('Paper deleted from the saved library.');}catch{notify('Could not remove the saved paper.');}finally{setLoading(false);}
+  }
+  async function reorder(index,direction){setLoading(true);try{onPaper(await movePaper(paper,index,direction));}catch{notify('Could not save the paper order.');}finally{setLoading(false);}}
+  async function toggle(id,selected){setLoading(true);try{onPaper(await togglePaper(paper,id,selected));}catch(e){notify(e.message||'Could not save selection.');}finally{setLoading(false);}}
+
+  const activeIndex = paper?.library ? paper.library.findIndex(item => item.id === activePaper?.id) : -1;
+  const currentFit = activePaper ? {
+    paperFit: activePaper.paperFit ?? settings.paperFit ?? 'stretch',
+    topMargin: activePaper.topMargin ?? settings.topMargin ?? 100,
+    margin: activePaper.margin ?? settings.margin ?? 130,
+    rightMargin: activePaper.rightMargin ?? settings.rightMargin ?? 90,
+    bottomMargin: activePaper.bottomMargin ?? settings.bottomMargin ?? 100,
+  } : settings;
+
+  function updateActiveFit(key, value) {
+    setSettings(s => ({ ...s, [key]: value }));
+    if (activePaper) {
+      onSaveFit?.({ [key]: value });
+    }
+  }
+
+  return <div className="custom-paper"><div className="section-label">CUSTOM BACKGROUND / PAPER</div><p>Save up to 10 papers for next time. New uploads add to your library. Select the papers you want to cycle through; unchecking a paper keeps it saved.</p><input ref={input} hidden multiple type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload custom paper" onChange={upload}/><div className="paper-actions"><button className="outline-button" disabled={disabled||loading||(paper?.library.length||0)>=10} onClick={choose}>{loading?'Saving…':(paper?.library.length||0)>=10?'Library full (10/10)':'Add papers to library'}</button><span className="library-count" aria-live="polite">{paper?.library.length||0}/10 saved · {paper?.items.length||0} selected</span>{paper && <button className="primary-button use-papers-button" aria-pressed={settings.paper==='custom'} disabled={disabled||loading} onClick={()=>{setSettings(s=>({...s,paper:'custom'}));notify('Selected papers applied to your notes.');}}>✓ Use selected papers</button>}</div>{paper?.library.length===10 && <p>Library full. Select any saved papers below. To upload more, delete a paper you no longer need.</p>}<label className="setting-row paper-mode">Background on next pages<select aria-label="Background sequence mode" value={settings.paperMode||'cycle'} onChange={e=>setSettings(s=>({...s,paperMode:e.target.value}))}><option value="cycle">Alternate selected papers</option><option value="single">Use the same paper</option></select></label>{paper?.items.length===1 && <p>Select at least two saved papers to alternate backgrounds.</p>}<div className="paper-slots">{(paper?.library||[]).map((item,index)=>{const selectedIndex=paper.selectedIds.indexOf(item.id),selected=selectedIndex!==-1;return <div className="paper-slot" key={item.id} data-active={settings.paper==='custom' && paper.items[paperIndex(settings,pageIndex,paper.items.length)]?.id===item.id}><label className="paper-select"><input type="checkbox" aria-label={'Select paper '+(index+1)} checked={selected} disabled={disabled||loading||(selected&&paper.items.length===1)} onChange={e=>toggle(item.id,e.target.checked)}/> Paper {index+1}</label><img src={thumbnails[index]} alt={'Paper '+(index+1)+' preview'}/><span title={item.name}>{item.name}</span><small>{selected?'Cycle position '+(selectedIndex+1):'Saved · not selected'}</small><button disabled={disabled||loading} onClick={()=>remove(item.id)} aria-label={'Delete saved paper '+(index+1)}>Delete saved paper</button>{selected && <div><button disabled={disabled||loading||selectedIndex===0} onClick={()=>reorder(selectedIndex,-1)} aria-label={'Move paper '+(index+1)+' earlier'}>←</button><button disabled={disabled||loading||selectedIndex===paper.items.length-1} onClick={()=>reorder(selectedIndex,1)} aria-label={'Move paper '+(index+1)+' later'}>→</button></div>}</div>})}</div>{paper && <p className="paper-filename">{settings.paperMode==='single'?'Saved order (only the first paper is used): ':'Selected cycle: '}{paper.items.map(item=>'Paper '+(paper.library.findIndex(saved=>saved.id===item.id)+1)).join(' → ')} → repeat. Selection and order are saved on this device.</p>}{settings.paper==='custom' && paper && <><div className="active-paper-adjust-badge"><strong>Writing fit for Paper {activeIndex >= 0 ? activeIndex + 1 : 1}</strong> (current page {pageIndex + 1})</div><label className="setting-row">Image fit<select aria-label="Paper image fit" value={currentFit.paperFit} onChange={e=>updateActiveFit('paperFit',e.target.value)}><option value="contain">Whole image (white edges)</option><option value="cover">Fill page (crop edges)</option><option value="stretch">Stretch to A4</option></select></label><button className="outline-button" onClick={()=>{const reset={paperFit:'stretch',margin:130,topMargin:100,rightMargin:90,bottomMargin:100};setSettings(s=>({...s,...reset,paperLayoutVersion:2}));if(activePaper)onSaveFit?.(reset);}}>Fit writing to full page</button><div className="paper-margins">{[['topMargin','Top',40,700],['margin','Left',30,350],['rightMargin','Right',30,400],['bottomMargin','Bottom',30,400]].map(([key,label,min,max])=><label key={key} className="slider-label">{label} margin <span>{currentFit[key]??(key==='rightMargin'?90:100)} px</span><input aria-label={'Writing '+label.toLowerCase()+' margin'} type="range" min={min} max={max} value={currentFit[key]??(key==='rightMargin'?90:100)} onChange={e=>updateActiveFit(key,+e.target.value)}/></label>)}</div><label className="setting-row"><input type="checkbox" checked={settings.showWritingArea??true} onChange={e=>setSettings(s=>({...s,showWritingArea:e.target.checked}))}/> Show writing area (preview only)</label><p>Each page uses its paper's separate writing margins. Text fits each paper individually and wraps across pages. You can adjust margins manually or click Auto-adjust on the preview.</p></>}<small>PNG, JPG or WebP · up to 15 MB. Images stay in this browser.</small></div>;
+}

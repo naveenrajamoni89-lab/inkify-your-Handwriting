@@ -1,0 +1,112 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { paperPlacement, writingArea, paperForPage, spacingJitter } from '../src/engine.js';
+import { layoutText, defaults, PAGE, random, normalizeSettings, configureFont, measureText, glyphAdvance } from '../src/engine.js';
+const measure = text => [...text].length * 20;
+test('extra spacing is bounded to 1–3 pixels and disabled with natural effects',()=>{
+  const rng=random(2026),values=Array.from({length:100},()=>spacingJitter({...defaults,spacingVariation:3},rng()));
+  assert.ok(values.every(value=>value>=1&&value<=3));assert.ok(new Set(values).size>90);
+  assert.equal(spacingJitter({...defaults,realism:false},.7),0);
+  assert.equal(spacingJitter({...defaults,spacingVariation:0},.7),0);
+  const ctx={measureText:()=>({width:20})};
+  assert.equal(measureText(ctx,'ab',{...defaults,tracking:0,width:1,spacingVariation:3}),49.2);
+});
+test('paper sequence repeats in order over ten pages and supports fewer images', () => {
+  const paperImages=[{name:'one'},{name:'two'},{name:'three'}];
+  assert.deepEqual(Array.from({length:10},(_,i)=>paperForPage({paperImages},i).name),['one','two','three','one','two','three','one','two','three','one']);
+  assert.equal(paperForPage({paperImages:paperImages.slice(0,2)},2),paperImages[0]);
+  assert.equal(paperForPage({paperImages:[paperImages[0]]},9),paperImages[0]);
+  assert.equal(paperForPage({paperImages,paperMode:'single'},8),paperImages[0]);
+  assert.equal(paperForPage({paperImages,paperMode:'cycle'},8),paperImages[2]);
+  assert.equal(normalizeSettings({paperMode:'single'}).paperMode,'single');
+  assert.equal(normalizeSettings({}).paperMode,'cycle');
+});
+test('cycling mixed image proportions shares a writing rectangle within every image', () => {
+  const settings={...defaults,paper:'custom',paperFit:'contain',paperImages:[{width:900,height:1600},{width:1600,height:900},{width:1200,height:1400}]};
+  const common=writingArea(settings);
+  for(const paperImage of settings.paperImages){
+    const single=writingArea({...settings,paperImages:undefined,paperImage});
+    assert.ok(common.x>=single.x && common.y>=single.y);
+    assert.ok(common.x+common.width<=single.x+single.width);
+    assert.ok(common.y+common.height<=single.y+single.height);
+  }
+});
+test('custom paper fits without distortion or fills with centered cropping', () => {
+  const fit=paperPlacement(1000,1000,'contain');
+  assert.deepEqual(fit,{x:0,y:257,width:1240,height:1240});
+  const crop=paperPlacement(1000,1000,'cover');
+  assert.deepEqual(crop,{x:-257,y:0,width:1754,height:1754});
+  assert.deepEqual(paperPlacement(800,600,'stretch'),{x:0,y:0,width:1240,height:1754});
+});
+test('moving writing down reduces page capacity without losing text', () => {
+  const text=Array(60).fill('Notes').join('\n');
+  const pages=layoutText(text,{...defaults,topMargin:700},measure);
+  assert.equal(pages.length,4);
+  assert.equal(pages.flat().join('\n'),text);
+});
+test('custom writing stays within the displayed image for portrait and landscape backgrounds', () => {
+  for(const paperFit of ['contain','cover','stretch']) for(const [width,height] of [[1600,900],[900,1600]]) {
+    const settings={...defaults,paper:'custom',paperFit,paperImage:{width,height},margin:130,topMargin:100,rightMargin:100,bottomMargin:120};
+    const area=writingArea(settings),p=paperPlacement(width,height,paperFit);
+    assert.ok(area.x>=Math.max(0,p.x)); assert.ok(area.y>=Math.max(0,p.y));
+    assert.ok(area.x+area.width<=Math.min(PAGE.width,p.x+p.width));
+    assert.ok(area.y+area.height<=Math.min(PAGE.height,p.y+p.height));
+    assert.ok(area.start+(area.capacity-1)*settings.spacing+settings.size*.6<=area.y+area.height);
+    const text=Array(500).fill('A full page of notes.').join(' ');
+    const pages=layoutText(text,settings,measure);
+    assert.equal(pages.flat().join(' '),text);
+    assert.ok(pages.every(page=>page.length<=area.capacity));
+  }
+});
+test('wraps text within writable page width without losing words', () => {
+  const text = Array(200).fill('a handwritten sentence').join(' ');
+  const pages = layoutText(text, defaults, measure);
+  assert.ok(pages.length > 1);
+  assert.equal(pages.flat().join(' '), text);
+  for (const page of pages) {
+    assert.ok(page.length <= Math.floor((PAGE.height - 230) / defaults.spacing));
+    for (const line of page) assert.ok(measure(line) <= PAGE.width - defaults.margin - 90);
+  }
+});
+test('preserves deliberate paragraph breaks and empty content', () => {
+  assert.deepEqual(layoutText('first\r\n\r\nsecond', defaults, measure), [['first', '', 'second']]);
+  assert.deepEqual(layoutText('', defaults, measure), [['']]);
+});
+test('splits oversized words and keeps every character', () => {
+  const text = 'abcdefghij'.repeat(100);
+  const lines = layoutText(text, defaults, measure).flat();
+  assert.equal(lines.join(''), text);
+  assert.ok(lines.every(line => measure(line) <= PAGE.width - defaults.margin - 90));
+});
+test('variation is deterministic across previews and exports', () => {
+  const a = random(2026), b = random(2026);
+  assert.deepEqual(Array.from({ length: 100 }, a), Array.from({ length: 100 }, b));
+});
+
+test('custom spacing and width use the same glyph advances for layout and rendering', () => {
+  const ctx = { measureText: text => ({ width: text === ' ' ? 5 : 10 }) };
+  const settings = { ...defaults, realism: false, width: 1.2, tracking: 2, wordGap: 8 };
+  assert.equal(glyphAdvance(ctx, 'A', settings), 14);
+  assert.equal(glyphAdvance(ctx, ' ', settings), 16);
+  assert.equal(measureText(ctx, 'A B', settings), 44);
+  const lines = layoutText('A B '.repeat(100), settings, text => measureText(ctx, text, settings)).flat();
+  assert.ok(lines.every(line => measureText(ctx, line, settings) <= PAGE.width - settings.margin - 90));
+});
+
+test('restores old drafts with defaults and clamps invalid style controls', () => {
+  const old = normalizeSettings({ style: 'everyday', size: 38 });
+  assert.equal(old.style, 'everyday');
+  assert.equal(old.wordGap, defaults.wordGap);
+  const invalid = normalizeSettings({ width: 99, weight: -5, slant: Infinity, variation: 'bad', customFont: 'missing font' });
+  assert.equal(invalid.width, 1.3);
+  assert.equal(invalid.weight, 400);
+  assert.equal(invalid.slant, defaults.slant);
+  assert.equal(invalid.variation, defaults.variation);
+  assert.equal(invalid.customFont, undefined);
+});
+
+test('canvas font honors custom family and weight', () => {
+  const ctx = {};
+  configureFont(ctx, { ...defaults, weight: 700, customFont: 'InkifyCustom123' });
+  assert.equal(ctx.font, '700 44px "InkifyCustom123"');
+});

@@ -1,0 +1,10 @@
+
+.cursor/hooks.json
+.cursor/hooks/after-agent-response.js
+node_modules/
+.npm-cache/
+.browser-check/
+dist/
+.env
+.env.*
+!.env.example
