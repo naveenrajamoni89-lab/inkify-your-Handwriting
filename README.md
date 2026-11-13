@@ -1,59 +1,309 @@
-# Inkify AI
+# Inkify AI — Text to Handwriting
 
-A local-first React MVP for turning typed text into handwritten notebook pages.
+Turn typed text into handwritten A4 notebook pages. Choose handwriting, ink and paper, fine-tune the layout, save named settings, and download PNG or PDF files. The React application processes your notes in your browser.
 
-## Run
+**[Try the live demo](https://naveenrajamoni89-lab.github.io/inkify-your-Handwriting/)** · **[Source code](https://github.com/naveenrajamoni89-lab/inkify-your-Handwriting)** · **[Deployment status](https://github.com/naveenrajamoni89-lab/inkify-your-Handwriting/actions)**
 
-Requires Node.js 20.19+ or 22+.
+No installation or sign-in is required to try the live website.
+
+## Contents
+
+- [Quick live test](#quick-live-test)
+- [Complete usage flow](#complete-usage-flow)
+- [Step-by-step guide](#step-by-step-guide)
+- [Run locally](#run-locally)
+- [Project structure](#project-structure)
+- [How the application works](#how-the-application-works)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Storage and privacy](#storage-and-privacy)
+- [Limits and troubleshooting](#limits-and-troubleshooting)
+
+## Quick live test
+
+1. Open **[Inkify live](https://naveenrajamoni89-lab.github.io/inkify-your-Handwriting/)** and wait for the handwriting preview to appear.
+2. In **Your text**, replace the example with a few sentences and give your notebook a title.
+3. Choose a handwriting style and ink color. Check that the preview changes.
+4. Open **Make it yours**, set **Exact line spacing** to `30`, and try **Tight** or **Extra tight**.
+5. Under **MY SAVED SETTINGS**, enter `My compact notes` and click **Save as new**.
+6. Change the spacing, choose your saved settings, and click **Apply settings**. Your saved values should return.
+7. Refresh the page. Your draft and saved settings should still be available in the same browser.
+8. Click **Save PNG** for the current page or **Download PDF** for all pages. Open the file to check the result.
+
+For a multipage test, paste several paragraphs and use the preview page selector before exporting the PDF.
+
+## Complete usage flow
+
+```mermaid
+flowchart TD
+    A[Open live demo or local app] --> B[Load example or restore local draft]
+    B --> C[Type, paste or import a text file]
+    C --> D[Choose handwriting and ink]
+    D --> E{Choose paper}
+    E -->|Built-in| F[Plain A4, ruled notebook or graph]
+    E -->|Uploaded| G[Add papers to the local library]
+    G --> H[Select papers, set order and background mode]
+    H --> I[Adjust each paper's fit and writing margins]
+    F --> J[Adjust size, spacing and appearance]
+    I --> J
+    J --> K{Use a custom font?}
+    K -->|No| L[Review the live preview]
+    K -->|Upload font| M[Preview and apply a saved font]
+    K -->|Create font| N[Download template, fill it and upload scan]
+    N --> O[Review detected characters and save font]
+    M --> L
+    O --> L
+    L --> P{Save this configuration?}
+    P -->|Yes| Q[Enter custom name and Save as new]
+    Q --> R[Apply or update saved settings later]
+    P -->|No| S[Check every page and export quality]
+    R --> S
+    S --> T{Download format}
+    T -->|PNG| U[Save current page as an image]
+    T -->|PDF| V[Download all pages in one PDF]
+```
+
+## Step-by-step guide
+
+### 1. Add your notes
+
+- Use **Your text** to type or paste notes, or choose **Import .txt** for a plain-text file smaller than 200 KB.
+- Change **Notebook title** to set the exported filename.
+- Text input supports up to 50,000 characters. **Try an example** replaces the editor text with the sample note.
+- The app wraps text and creates pages automatically. Use the arrows or page selector to review each page.
+
+### 2. Choose handwriting and appearance
+
+The **Handwriting Style** cards provide Research notes, Everyday, Neat & tidy, and Journal styles. Saved custom fonts appear alongside them.
+
+Open **Make it yours** to choose a built-in preset or change letter size, weight, slant, width, spacing, word gaps, rotation, ink intensity and stroke thickness. You can also choose a paper finish, underline headings, and enable connected writing.
+
+**Connected writing** uses the selected font's native word shaping and ligatures. Individual-letter spacing and per-letter variation apply in individual-letter mode. **Natural handwriting effects** controls the size, baseline and ink variation.
+
+### 3. Reduce line spacing
+
+| Control | What it does |
+| --- | --- |
+| Line spacing slider | Sets the baseline distance between lines from 12 to 100 px. |
+| Exact line spacing | Lets you enter the spacing directly instead of dragging the slider. |
+| Comfortable | Sets spacing to approximately 1.3 times the current letter size. |
+| Tight | Sets spacing equal to the current letter size. |
+| Extra tight | Sets spacing to approximately 0.8 times the current letter size, with a 12 px minimum. |
+| Letter size | Reduces the letters themselves; supports 12–64 px. Reapply a spacing shortcut after changing size if desired. |
+| Baseline irregularity and character rotation | Reduce these to make tightly spaced writing steadier. They do not change the baseline distance. |
+
+There is no hidden font-size floor overriding your spacing choice. Very tight lines can overlap tall letters and descenders; review the preview before exporting. The same spacing calculation is used for pagination, preview and exports.
+
+### 4. Save settings with a custom name
+
+In **Make it yours → MY SAVED SETTINGS**:
+
+1. Adjust the appearance you want to keep.
+2. Enter a **Custom name**, such as `Exam notes` or `Compact journal`.
+3. Click **Save as new** to create a named configuration.
+4. Choose a configuration from **Saved settings** and click **Apply settings** to restore it.
+5. To change an existing configuration or its name, select it, edit the settings or name, then click **Update selected**.
+6. Click **Delete selected** to remove that configuration.
+
+Named settings include handwriting, spacing, ink, export quality, general paper settings and a reference to the custom font, if selected. They do not include your note text or duplicate uploaded paper/font files. Each uploaded paper retains its own fit settings separately. If a referenced font or paper is unavailable, the app uses a fallback and tells you.
+
+Settings are stored in the current browser and site address. They do not sync between devices.
+
+### 5. Use custom paper or notebook backgrounds
+
+1. Under **CUSTOM BACKGROUND / PAPER**, click **Add papers to library**.
+2. Upload PNG, JPG or WebP images, up to 15 MB and 40 megapixels per image. The library holds up to 10 papers.
+3. Check the saved papers you want to use and click **Use selected papers**. Unchecking keeps a paper in the library; **Delete saved paper** removes it.
+4. Use the arrows to reorder selected papers.
+5. Choose **Alternate selected papers** to cycle through them, or **Use the same paper** to repeat the first selected paper.
+6. On each paper, choose whole-image fit, cropped fill or stretch. Adjust its top, bottom, left and right writing margins.
+7. Use **Fit writing to full page** for a fresh full-page fit, or adjust the preview guide and **Auto-adjust edges**. Review the result and correct the margins manually when needed.
+8. Check every page before downloading. The preview identifies the current paper and background mode.
+
+New uploads append to the library. A batch larger than the remaining capacity is rejected; delete unused papers or upload fewer files. Images are resized to at most 3508 pixels on their longest edge. Existing handwriting in an uploaded image remains visible beneath the new text.
+
+### 6. Upload or create your own handwriting font
+
+**Upload an existing font:** open **My handwriting** or **Custom Font Manager**, upload a WOFF, WOFF2, TTF or OTF file up to 5 MB, preview it, and choose **Apply to notes**. You can rename, download or delete saved fonts.
+
+**Create a font from your handwriting:**
+
+1. Open the font manager's template creation tab.
+2. Download the handwriting template and fill the labeled character cells.
+3. Scan it flat, crop to the complete template page at a 6:7 ratio, and upload a PNG or JPEG smaller than 20 MB.
+4. Adjust **Ink threshold** and click **Re-detect characters** if necessary.
+5. Review the detected cells, exclude unwanted marks, then build and save the font.
+6. Apply the saved font to your notes.
+
+The template covers 94 characters. Missing characters use browser fallback. This process requires the supplied grid; it does not extract a matching font from arbitrary handwritten paragraphs.
+
+### 7. Export and share
+
+Choose export quality under **Make it yours**:
+
+| Quality | Image size per A4 page | Use |
+| --- | --- | --- |
+| 150 DPI | 1240 × 1754 px | Smaller files and everyday sharing |
+| 300 DPI | 2480 × 3508 px | Higher-resolution output for printing |
+
+- **Save PNG** downloads the currently selected preview page.
+- **Download PDF** includes every generated page in one A4 document.
+- PDFs contain lossless raster page images; the handwriting is not selectable text.
+- Custom-paper exports omit added page numbers. The writing-area guide is preview-only.
+
+## Run locally
+
+Use Node.js 22 for the same major version as the deployment workflow. The package also permits Node 20.19+ within Node 20, or Node 22 and later.
 
 ```sh
-npm install
+git clone https://github.com/naveenrajamoni89-lab/inkify-your-Handwriting.git
+cd inkify-your-Handwriting
+npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. `npm run build` creates a static production build in `dist`; `npm run preview` serves it locally. `npm test` runs the layout tests.
+Open the local URL printed by Vite, usually `http://127.0.0.1:5173`. No backend, API key or environment file is required.
 
-For optional browser verification with Node 22+ and a local Chromium browser, set `BROWSER_PATH` to its executable and run `node tests/browser.mjs` while the development server is running. This checks real rendering, style changes, multi-page PNG/PDF downloads, draft recovery and mobile overflow. It uses an isolated browser profile and writes ignored artifacts to `.browser-check/`.
+| Command | Purpose |
+| --- | --- |
+| `npm ci` | Install the exact dependency versions from the lockfile. |
+| `npm run dev` | Start the local development server. |
+| `npm test` | Run the Node layout and paper-library tests. |
+| `npm run build` | Compile the production website into `dist/`. |
+| `npm run preview` | Serve the compiled build locally, usually on port 4173. |
+
+## Project structure
+
+```text
+inkify-your-Handwriting/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # Test, build and deploy to GitHub Pages
+├── public/
+│   └── favicon.svg             # Website icon
+├── src/
+│   ├── main.jsx                # Application UI, state, pagination and exports
+│   ├── engine.js               # Settings, text layout and canvas rendering
+│   ├── SavedSettings.jsx       # Named settings: save, apply, update and delete
+│   ├── PaperControls.jsx       # Uploaded paper library and fit controls
+│   ├── WritingGuide.jsx        # Preview writing-area handles and edge adjustment
+│   ├── paper-library.js        # Paper selection, ordering and fit data helpers
+│   ├── paper-store.js          # Persistent paper library and image loading
+│   ├── FontManager.jsx         # Font upload, preview and template interface
+│   ├── font-store.js           # Persistent font storage and activation
+│   ├── template.js             # Template creation, extraction and font building
+│   └── style.css               # Application styles and responsive layout
+├── tests/
+│   ├── engine.test.js          # Layout, spacing, rendering helpers and restoration
+│   ├── paper-library.test.js   # Paper library selection and lifecycle tests
+│   └── browser.mjs             # Optional Chromium interaction and export checks
+├── index.html                  # HTML entry point and page metadata
+├── vite.config.js              # Relative asset paths for static hosting
+├── package.json                # Commands, runtime requirements and dependencies
+├── package-lock.json           # Locked dependency versions
+├── .gitignore                  # Excludes dependencies and generated/local files
+└── README.md
+```
+
+`node_modules/`, `dist/`, `.npm-cache/` and `.browser-check/` are local/generated directories and are excluded from Git.
+
+## How the application works
+
+The stack uses React 19, Vite 6, browser Canvas, bundled Fontsource fonts, Lucide icons, jsPDF and opentype.js.
+
+```mermaid
+flowchart LR
+    A[Text and appearance controls] --> B[React application state]
+    B --> C[Measured wrapping and pagination]
+    C --> D[Shared canvas renderer]
+    D --> E[Live page preview]
+    D --> F[Current-page PNG]
+    D --> G[All-page PDF via jsPDF]
+    B --> H[Local draft storage]
+    I[Named settings in localStorage] --> B
+    B --> I
+    J[Paper and font files in IndexedDB] --> D
+    K[Handwriting template scan] --> L[Character extraction via opentype.js]
+    L --> J
+```
+
+The engine shares line spacing and glyph measurements between layout and rendering. Seeded variation keeps the same content and settings consistent across repeated renders. Built-in fonts load from bundled assets. Template extraction converts detected ink runs into OpenType outlines.
+
+## Testing
+
+Run the automated unit tests and production build:
+
+```sh
+npm test
+npm run build
+```
+
+The tests cover wrapping without losing characters, paragraph preservation, tight-spacing pagination, draft normalization, seeded variation, custom-paper placement and paper selection/order behavior.
+
+For the optional browser suite, use Node 22+ and an installed Chromium browser. Start `npm run dev` in another terminal, then run:
+
+```powershell
+# Windows PowerShell: adjust the path if necessary.
+$env:BROWSER_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+node tests/browser.mjs
+```
+
+```sh
+# macOS/Linux: replace the executable path for your system.
+BROWSER_PATH=/path/to/chromium node tests/browser.mjs
+```
+
+The browser suite checks rendering, controls, font persistence, synthetic template extraction, PNG/PDF output, draft recovery and mobile overflow. It creates an isolated browser profile and stores artifacts in the ignored `.browser-check/` directory. Run it against the development server: its template check imports a source module that is not exposed by the production build.
+
+Use the [quick live test](#quick-live-test) to check the published application manually, including named settings.
 
 ## Deployment
 
-Live site: https://naveenrajamoni89-lab.github.io/inkify-your-Handwriting/
+The live deployment is **[https://naveenrajamoni89-lab.github.io/inkify-your-Handwriting/](https://naveenrajamoni89-lab.github.io/inkify-your-Handwriting/)**.
 
-GitHub Actions installs the locked dependencies with `npm ci`, runs the tests, builds `dist/`, and deploys it to GitHub Pages on every push to `main`. In repository **Settings → Pages**, use **GitHub Actions** as the build source. Do not publish the unbuilt source branch: browsers cannot execute the JSX entry point directly.
+In the repository, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. The tracked workflow runs on pushes to `main` and can also be started manually from Actions.
 
-The Vite configuration uses relative asset URLs so the build also works under the repository path. Other static hosts can use `npm run build` with `dist` as their publish directory and Node 22. No server or environment secrets are required.
+```mermaid
+flowchart LR
+    A[Push to main] --> B[Check out repository]
+    B --> C[Set up Node 22]
+    C --> D[npm ci]
+    D --> E[npm test]
+    E --> F[npm run build]
+    F --> G[Upload dist artifact]
+    G --> H[Deploy to GitHub Pages]
+    H --> I[Open live demo and verify]
+```
 
-## Working features
+The workflow requests read access to repository contents, write access to Pages, and an identity token for deployment. Only one Pages deployment runs at a time.
 
-- Live canvas preview with four bundled handwriting fonts (Indie Flower, Caveat, Patrick Hand, Kalam).
-- Reference-inspired Research notes preset: open, rounded letters, looser word spacing and uneven baselines. This is a visual approximation of the supplied samples, not an extracted font or handwriting clone.
-- Blue, black, red and green ink; ruled, plain A4 and graph paper.
-- Custom paper/background upload (PNG, JPG, WebP, up to 15 MB / 40 megapixels). Choose whole-image fit, cropped fill or stretch to A4. Adjust the writing start position; left margin and line spacing align text to the uploaded paper. A library stores up to 10 paper images across visits. Each new upload batch appends without replacing previous papers; a batch exceeding the remaining capacity is rejected in full. Check any saved papers to include them in the cycle, and use arrows to set their order. Unchecking keeps the image saved; deleting permanently removes it and frees a slot. Keep at least one selected paper, or use a built-in paper instead. Only the selected papers cycle across preview and PNG/PDF exports. The library, selection and cycle order persist locally; older single-paper and three-paper drafts migrate automatically. Storage is specific to this browser/site address and can be lost if browser data is cleared. All cycling images share a safe writing rectangle when their proportions differ. Images are normalized to at most 3508 pixels on the longest edge; existing writing in an uploaded image remains visible.
-- Custom paper defaults to a full-page static background. **Fit writing to full page** resets its fit and safe margins. Four margin controls define the writing rectangle; wrapping and pagination share that rectangle with the renderer, including when the image is letterboxed. A dashed preview-only guide helps avoid photographed edges and binding. Custom-paper exports omit added page numbers. The app does not detect or straighten the physical sheet inside a photograph; adjust the margins or upload a tightly cropped page for that case.
-- **Background on next pages** explicitly chooses **Alternate selected papers** (default) or **Use the same paper** (first selected image). Select at least two papers to alternate. The compact desktop preview stays visible while scrolling the controls, identifies the current background, and has a page selector. PDF exports all pages with a unique image identifier per page; PNG exports only the current page.
-- Adjustable size, weight, line spacing, margin, slant, letter width, letter spacing, word spacing and variation intensity.
-- Deterministic letter rotation, independent height/width variation, bounded spacing variation, baseline drift, stroke thickness and ink intensity. Three presets: Neat Student Handwriting, Natural College Notes and Quick Classroom Notes.
-- Pure white paper remains the default; optional textured and photographed finishes add grain, lighting and an edge shadow. Headings can be underlined without changing their text.
-- Custom Font Manager: upload WOFF/WOFF2/TTF/OTF up to 5 MB, preview, apply, rename, download and delete. Font files persist locally in IndexedDB; the selected font restores with the draft. Static fonts may use synthesized weights.
-- Uploaded and template-created fonts also appear directly in **Handwriting Style** as saved font cards. Select them alongside the built-in styles; renaming or deleting a font in the manager updates its card immediately. Saved cards load on startup even when a built-in font is selected. Fonts are stored in this browser/site address, not synced between devices.
-- Create My Handwriting Font: download a 94-character template, upload a flat PNG/JPEG scan, adjust ink threshold, review/exclude cells, build and save an OpenType font.
-- Automatic word wrapping and pagination, including long unbroken text.
-- Current-page PNG and all-page A4 PDF exports: 1240 × 1754 (approximately 150 DPI) or 2480 × 3508 (approximately 300 DPI). PDF uses lossless PNG page images.
-- Plain text import, editable notebook title and browser-local draft recovery.
-- Responsive interface. Text processing and exports run in the browser; fonts are bundled locally.
+For another static host, use `npm run build` and publish `dist/`. Relative asset URLs support both repository subpaths and root hosting. Publish the compiled output: serving the source `index.html` directly leaves its JSX entry point unbuilt. `npm run preview` is for local verification of the build.
 
-## Architecture and limits
+## Storage and privacy
 
-The existing React/Vite application remains browser-only. main.jsx owns editor state and pagination; engine.js shares measured layout and seeded rendering between preview and export. FontManager.jsx manages library and template review; font-store.js persists font bytes in IndexedDB. template.js thresholds labeled cells and converts horizontal ink runs into OpenType outlines with opentype.js. No service receives text, fonts or handwriting images.
+| Data | Storage and behavior |
+| --- | --- |
+| Text, title and current settings | Browser localStorage; draft autosaves after a short delay. |
+| Named configurations | Browser localStorage; saved explicitly with a custom name. |
+| Custom fonts | Browser IndexedDB; activated again when available. |
+| Paper images, selections, order and per-paper fit | Browser IndexedDB; restored on the same site address. |
+| PNG and PDF exports | Downloaded to the location chosen by your browser. |
 
-Individual-letter mode varies glyph dimensions and spacing. Uploaded fonts with readable OpenType salt/aalt tables can supply real alternate outlines. Connected mode uses the browser's native word shaping, preserving available contextual forms and ligatures; per-letter spacing/variation is not applied inside connected words. WOFF2 fonts still render through the browser when outline parsing is unavailable. We do not invent letter alternatives when the font has none.
+The application does not send your notes, uploaded fonts or paper images to an application backend. Loading the hosted website still requests its static assets from the hosting provider. There are no user accounts or cross-device synchronization. Clearing browser/site data removes locally stored drafts and libraries; export important work first. Local development and the live site have separate storage.
 
-The four supplied photos guide the visual style: open rounded forms, long descenders, uneven baselines, underlined headings and loose spacing. Their text is never treated as instructions. This is a simulation rather than a claim of exact handwriting reproduction.
+## Limits and troubleshooting
 
-Template extraction requires the supplied grid, scanned flat and cropped to the whole page at a 6:7 ratio. It does not recognize arbitrary paragraphs, correct perspective, or smooth pixel outlines into curves. Review every glyph; missing glyphs use browser fallback. The generated font covers selected ASCII characters, not arbitrary Unicode. For repeat variants, use a font with alternate glyphs. Font and draft storage can be lost if browser data is cleared.
+| Problem or limit | What to do or expect |
+| --- | --- |
+| Blank site after deployment | Check Actions, confirm Pages uses GitHub Actions, and publish `dist/` rather than the unbuilt source. |
+| Old controls after an update | Wait for the latest deployment to succeed, then refresh the page. |
+| Handwriting fonts fail to load | Reload the page and check the network connection and browser console. |
+| Saved settings or files are missing | Use the same browser and site address. Site-data clearing and private browsing can remove storage. |
+| Text overlaps at small line spacing | Increase spacing, reduce letter size, or reduce rotation and baseline irregularity. |
+| Writing is outside an uploaded sheet | Adjust that paper's fit and margins. Edge adjustment is a starting point; it does not straighten a photographed page. |
+| Paper library is full | Delete unused papers before uploading more; the limit is 10. |
+| Custom font does not connect letters | Connected writing depends on the font's available shaping and ligatures. |
+| Template font has missing characters | Re-scan the supplied grid, adjust ink threshold, and review the cells. Unsupported characters use fallback. |
+| Export uses too much memory | Choose 150 DPI or export a shorter note. Large 300-DPI documents require more memory. |
 
-Line spacing supports an exact baseline distance of 12–100 px with Comfortable, Tight and Extra tight shortcuts. Letter size supports 12–64 px. Very tight spacing can overlap tall letters or descenders; preview before exporting. Named settings can be saved, applied, updated and deleted in Make it yours. Presets persist in this browser, including custom-font references; uploaded papers retain their separate per-paper fits. Paragraph breaks, punctuation and capitalization are preserved; runs of whitespace normalize to single spaces. Exported PDFs contain raster pages, not selectable text. Large 300-DPI documents consume more memory. Input remains limited to 50,000 characters.
-
-The browser smoke test checks font persistence after refresh, a synthetic template extraction and font load, controls, pagination, current-page PNG dimensions, three-page PDF export and mobile overflow. It is not a validation against real scanned handwriting or a subjective realism score.
-
-# inkify-your-Handwriting
+Reference-inspired handwriting is a visual approximation, not an exact handwriting clone. Template extraction does not perform general handwriting recognition, perspective correction or smooth outline tracing. Real alternate glyphs require a font with supported alternate tables; the app does not invent them. Static fonts may use synthesized weights. Paragraph breaks, punctuation and capitalization are preserved, while runs of whitespace normalize to single spaces.
