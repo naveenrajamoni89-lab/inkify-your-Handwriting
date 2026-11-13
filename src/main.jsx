@@ -17,6 +17,7 @@ import { PRESETS, writingArea, writingAreaForPage, paperIndex } from './engine';
 import PaperControls from './PaperControls';
 import { loadPaper, savePaperFit } from './paper-store';
 import WritingGuide from './WritingGuide';
+import SavedSettings from './SavedSettings';
 
 const STORAGE = 'inkify-draft-v1';
 function restore() {
@@ -121,6 +122,14 @@ function App() {
     if(!paper||!activePaper) return;
     try { setPaper(await savePaperFit(paper, activePaper.id, fit)); } catch { setToast('Could not save paper fit settings.'); }
   }
+  function applySavedSettings(value, name) {
+    const font = savedFonts.find(f => f.id === value.fontId);
+    const missingFont = value.fontId && !font;
+    const missingPaper = value.paper === 'custom' && !paper;
+    setSettings({ ...value, fontId: font?.id, customFont: font?.family, fontGlyphs: font?.glyphSource, paper: missingPaper ? 'plain' : value.paper });
+    setPage(0);
+    setToast('Applied “' + name + '”.' + (missingFont ? ' Saved font unavailable; using built-in handwriting.' : '') + (missingPaper ? ' Upload paper to restore the custom background.' : ''));
+  }
   return <div className="app">
     <header className="header"><a className="brand" href="./" aria-label="Inkify home"><span className="brand-icon"><Feather size={23}/></span>inkify<span className="ai">AI</span></a><span className="header-divider"/><span className="header-label">Your words. A personal touch.</span><div className="header-right"><span className="local-badge"><span/> Private by design</span><button className="avatar" title="Notes are stored in this browser" aria-label="Local workspace">N</button></div></header>
     <main>
@@ -133,14 +142,21 @@ function App() {
             <p className="reference-note">Inspired by your samples: open, rounded letters, loose spacing and uneven baselines. A simulation, not a clone of your writing.</p>
             <button className="outline-button" onClick={()=>setModal(true)}>Custom Font Manager · Create my font</button>
             <div className="preset-list">{Object.entries(PRESETS).map(([id,preset])=><button key={id} onClick={()=>setSettings(s=>({...preset.settings, customFont:s.customFont,fontId:s.fontId,fontGlyphs:s.fontGlyphs}))}>{preset.name}</button>)}</div>
+            <SavedSettings settings={settings} onApply={applySavedSettings} notify={setToast} disabled={!ready || busy}/>
             <label className="setting-row">Paper finish<select value={settings.finish} onChange={e=>set('finish',e.target.value)}><option value="white">Pure white</option><option value="paper">Textured paper</option><option value="photo">Photographed paper</option></select></label>
             <label className="setting-row"><input type="checkbox" checked={settings.headings} onChange={e=>set('headings',e.target.checked)}/> Underline title and lines ending in a colon</label>
             <label className="setting-row"><input type="checkbox" checked={settings.connected} onChange={e=>set('connected',e.target.checked)}/> Connected writing (font-native word shaping)</label><p className="control-note">Connected writing preserves a font's ligatures and contextual forms. Letter spacing and per-letter variation apply in individual-letter mode.</p>
             <label className="setting-row">Export quality<select value={settings.exportScale} onChange={e=>set('exportScale',+e.target.value)}><option value="1">150 DPI · smaller file</option><option value="2">300 DPI · print quality</option></select></label>
+            <section className="spacing-controls" aria-label="Tighter line spacing">
+              <label className="setting-row">Exact line spacing (px)<input aria-label="Exact line spacing" type="number" min="12" max="100" step="1" value={settings.spacing} onChange={e => { if (e.target.value !== '') set('spacing', Math.max(12, Math.min(100, Number(e.target.value)))); }}/></label>
+              <div className="settings-actions">{[['Comfortable', 1.3], ['Tight', 1], ['Extra tight', .8]].map(([label, ratio]) => <button className="outline-button" key={label} onClick={() => set('spacing', Math.max(12, Math.round(settings.size * ratio)))}>{label}</button>)}</div>
+              <p className="control-note">Baseline distance: {settings.spacing} px. Reduce it to 12 px using the slider or exact value. Tight and Extra tight set it relative to your letter size. Smaller letters also help lines fit; lower baseline irregularity and character rotation for steadier writing.</p>
+              {settings.spacing < settings.size && <p className="spacing-warning" role="status">Lines may overlap at this spacing. Reduce letter size or increase line spacing if needed.</p>}
+            </section>
             <div className="sliders-grid">{[
-              ['size', 'Letter size', 28, 64, 1, ' px'],
+              ['size', 'Letter size', 12, 64, 1, ' px'],
               ['weight', 'Font weight', 400, 700, 100, ''],
-              ['spacing', 'Line spacing', 52, 100, 1, ' px'],
+              ['spacing', 'Line spacing', 12, 100, 1, ' px'],
               ['margin', 'Left margin', 30, 350, 1, ' px'],
               ['slant', 'Letter slant', -15, 15, 1, '°'],
               ['width', 'Letter width', 0.8, 1.3, 0.01, '×'],

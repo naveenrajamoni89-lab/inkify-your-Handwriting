@@ -24,7 +24,7 @@ for (const preset of Object.values(PRESETS)) Object.assign(preset.settings, { pa
 
 export function normalizeSettings(value = {}) {
   const result = { ...defaults };
-  for (const [key, min, max] of [['size', 28, 64], ['spacing', 52, 100], ['margin', 30, 350], ['weight', 400, 700], ['slant', -15, 15], ['width', 0.8, 1.3], ['tracking', 0, 6], ['wordGap', 0, 24], ['variation', 0, 100], ['rotation',0,6], ['baseline',0,6], ['intensity',40,100], ['thickness',0,1], ['consistency',0,100], ['exportScale',1,2], ['spacingVariation',0,3]]) {
+  for (const [key, min, max] of [['size', 12, 64], ['spacing', 12, 100], ['margin', 30, 350], ['weight', 400, 700], ['slant', -15, 15], ['width', 0.8, 1.3], ['tracking', 0, 6], ['wordGap', 0, 24], ['variation', 0, 100], ['rotation',0,6], ['baseline',0,6], ['intensity',40,100], ['thickness',0,1], ['consistency',0,100], ['exportScale',1,2], ['spacingVariation',0,3]]) {
     const number = Number(value[key]);
     if (value[key] !== undefined && Number.isFinite(number)) result[key] = Math.max(min, Math.min(max, number));
   }
@@ -54,7 +54,7 @@ export function random(seed) {
 }
 
 // Layout uses the same measured glyph advances as rendering, so preview and exports match.
-export const lineHeight = settings => Math.max(settings.spacing, settings.size * 1.3);
+export const lineHeight = settings => Math.max(12, settings.spacing);
 export const paperIndex = (settings, pageIndex, count) => count ? (settings.paperMode==='single'?0:pageIndex%count) : 0;
 export function paperForPage(settings, pageIndex=0) {
   const images=settings.paperImages?.filter(Boolean);

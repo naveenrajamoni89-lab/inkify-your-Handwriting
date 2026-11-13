@@ -1,8 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { paperPlacement, writingArea, paperForPage, spacingJitter } from '../src/engine.js';
+import { paperPlacement, writingArea, paperForPage, spacingJitter, lineHeight } from '../src/engine.js';
 import { layoutText, defaults, PAGE, random, normalizeSettings, configureFont, measureText, glyphAdvance } from '../src/engine.js';
 const measure = text => [...text].length * 20;
+
+test('tight line spacing survives restoration and increases page capacity', () => {
+  const tight = normalizeSettings({ ...defaults, size: 34, spacing: 20 });
+  assert.equal(tight.spacing, 20);
+  assert.equal(lineHeight(tight), 20, 'No font-size floor silently increases the requested spacing');
+  assert.equal(normalizeSettings({ spacing: -5, size: 4 }).spacing, 12);
+  assert.equal(normalizeSettings({ size: 14 }).size, 14);
+  const text = Array.from({ length: 100 }, (_, i) => 'Line ' + i).join('\n');
+  const compactPages = layoutText(text, tight, measure);
+  const loosePages = layoutText(text, { ...tight, spacing: 52 }, measure);
+  assert.ok(compactPages.length < loosePages.length);
+  assert.deepEqual(compactPages.flat(), loosePages.flat(), 'Tighter pagination preserves every line');
+  assert.equal(lineHeight(defaults), 64, 'Existing default spacing is unchanged');
+});
 test('extra spacing is bounded to 1–3 pixels and disabled with natural effects',()=>{
   const rng=random(2026),values=Array.from({length:100},()=>spacingJitter({...defaults,spacingVariation:3},rng()));
   assert.ok(values.every(value=>value>=1&&value<=3));assert.ok(new Set(values).size>90);
