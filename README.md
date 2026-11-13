@@ -15,6 +15,14 @@ Open the local URL printed by Vite. `npm run build` creates a static production 
 
 For optional browser verification with Node 22+ and a local Chromium browser, set `BROWSER_PATH` to its executable and run `node tests/browser.mjs` while the development server is running. This checks real rendering, style changes, multi-page PNG/PDF downloads, draft recovery and mobile overflow. It uses an isolated browser profile and writes ignored artifacts to `.browser-check/`.
 
+## Deployment
+
+Live site: https://naveenrajamoni89-lab.github.io/inkify-your-Handwriting/
+
+GitHub Actions installs the locked dependencies with `npm ci`, runs the tests, builds `dist/`, and deploys it to GitHub Pages on every push to `main`. In repository **Settings → Pages**, use **GitHub Actions** as the build source. Do not publish the unbuilt source branch: browsers cannot execute the JSX entry point directly.
+
+The Vite configuration uses relative asset URLs so the build also works under the repository path. Other static hosts can use `npm run build` with `dist` as their publish directory and Node 22. No server or environment secrets are required.
+
 ## Working features
 
 - Live canvas preview with four bundled handwriting fonts (Indie Flower, Caveat, Patrick Hand, Kalam).
