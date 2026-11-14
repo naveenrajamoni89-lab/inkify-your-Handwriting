@@ -20,11 +20,15 @@ defaults.showWritingArea = true;
 defaults.paperMode = 'cycle';
 defaults.spacingVariation = 3;
 Object.assign(defaults, { cornerText: '', cornerSize: 40, cornerThickness: .3, cornerUnderline: false, cornerAnchor: 'top-right', cornerX: 90, cornerY: 65 });
+Object.assign(defaults, {cornerStyle:'research',cornerInk:'pen',cornerIntensity:92});
 // Presets predate paper controls; keep their default layout compatible.
 for (const preset of Object.values(PRESETS)) Object.assign(preset.settings, { paperFit: 'contain', topMargin: 155 });
 
 export function normalizeSettings(value = {}) {
   const result = { ...defaults };
+  if (STYLES[value.cornerStyle]) result.cornerStyle = value.cornerStyle;
+  if (INKS[value.cornerInk]) result.cornerInk = value.cornerInk;
+  if (Number.isFinite(value.cornerIntensity)) result.cornerIntensity = Math.max(40,Math.min(100,value.cornerIntensity));
   if (typeof value.cornerText === 'string') result.cornerText = value.cornerText.replace(/[\r\n]+/g, ' ').slice(0,120);
   if (typeof value.cornerUnderline === 'boolean') result.cornerUnderline = value.cornerUnderline;
   if (['top-left','top-right','bottom-left','bottom-right'].includes(value.cornerAnchor)) result.cornerAnchor = value.cornerAnchor;
@@ -265,7 +269,7 @@ export function paperPlacement(width, height, fit = 'contain') {
 }
 export function cornerTextBounds(ctx, settings) {
   const size = settings.cornerSize ?? 40;
-  configureFont(ctx, {...settings,size,weight:400});
+  configureFont(ctx, {style:settings.cornerStyle ?? 'research',size,weight:400});
   const right = (settings.cornerAnchor ?? 'top-right').endsWith('right');
   const bottom = (settings.cornerAnchor ?? 'top-right').startsWith('bottom');
   const insetX = settings.cornerX ?? 90, insetY = settings.cornerY ?? 65;
@@ -290,8 +294,8 @@ export function drawCornerText(ctx, settings, pageIndex = 0) {
   ctx.save();
   const {x,y,width,size,available} = cornerTextBounds(ctx,settings);
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillStyle = ctx.strokeStyle = INKS[settings.ink];
-  ctx.globalAlpha = (settings.intensity ?? 92)/100;
+  ctx.fillStyle = ctx.strokeStyle = INKS[settings.cornerInk ?? 'pen'];
+  ctx.globalAlpha = (settings.cornerIntensity ?? 92)/100;
   ctx.fillText(settings.cornerText,x,y,available);
   if (settings.cornerThickness) {
     ctx.lineWidth = settings.cornerThickness;

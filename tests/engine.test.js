@@ -16,6 +16,20 @@ test('hand-drawn corner underlines vary by page and stay stable for exports', ()
   assert.equal(stroke(0).calls[1].length,6,'Underline uses a cubic pen curve');
 });
 
+test('body handwriting controls do not change the separate corner label', () => {
+  function render(body) {
+    const calls=[];
+    const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(args),strokeText(){},beginPath(){},moveTo(){},bezierCurveTo(){},stroke(){}};
+    drawCornerText(ctx,{...defaults,cornerText:'252U1R1210',...body});
+    return {calls,font:ctx.font,ink:ctx.fillStyle,alpha:ctx.globalAlpha};
+  }
+  assert.deepEqual(render({}),render({style:'journal',size:64,weight:700,ink:'red',intensity:40,thickness:1,customFont:'BodyOnlyFont'}));
+  const corner=normalizeSettings({cornerStyle:'neat',cornerInk:'green',cornerIntensity:65});
+  assert.equal(corner.cornerStyle,'neat');
+  assert.equal(corner.cornerInk,'green');
+  assert.equal(corner.cornerIntensity,65);
+});
+
 test('dragging corner text works from all anchors and stays within the page', () => {
   for(const cornerAnchor of ['top-left','top-right','bottom-left','bottom-right']) {
     const settings={...defaults,cornerText:'123',cornerAnchor};
