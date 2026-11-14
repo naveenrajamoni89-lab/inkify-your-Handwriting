@@ -64,7 +64,7 @@ export default function WritingGuide({ area, settings, setSettings, activePaper,
     const clamped = Math.round(Math.max(edge.min, Math.min(edge.max, value)));
     const newFit = { ...fit, [key]: clamped };
     // Update global settings for live preview
-    setSettings(s => ({ ...s, [key]: clamped }));
+    if (!activePaper) setSettings(s => ({ ...s, [key]: clamped }));
     // Save to paper item
     onSaveFit?.({ [key]: clamped });
   }
@@ -78,7 +78,7 @@ export default function WritingGuide({ area, settings, setSettings, activePaper,
       if (v !== null) updates[edge.key] = v;
     }
     if (!Object.keys(updates).length) return;
-    setSettings(s => ({ ...s, ...updates }));
+    if (!activePaper) setSettings(s => ({ ...s, ...updates }));
     onSaveFit?.(updates);
   }
 
@@ -119,7 +119,8 @@ export default function WritingGuide({ area, settings, setSettings, activePaper,
             const raw = d.value + delta * d.scale * edge.sign;
             const clamped = Math.round(Math.max(edge.min, Math.min(edge.max, raw)));
             d.latestValue = clamped;
-            setSettings(s => ({ ...s, [edge.key]: clamped }));
+            if (activePaper) onSaveFit?.({ [edge.key]: clamped });
+            else setSettings(s => ({ ...s, [edge.key]: clamped }));
           }}
           onPointerUp={e => {
             if (drag.current && drag.current.latestValue !== undefined) {

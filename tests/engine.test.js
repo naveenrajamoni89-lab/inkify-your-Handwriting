@@ -1,5 +1,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { drawCornerText, resolveItemFit, writingAreaForPage } from '../src/engine.js';
+import { paperLibrary, updatePaperFit } from '../src/paper-library.js';
+
+test('corner text survives draft restoration with safe control bounds', () => {
+  const settings = normalizeSettings({cornerText:'Roll\n123',cornerSize:200,cornerThickness:2,cornerUnderline:true,cornerAnchor:'bottom-left',cornerX:140,cornerY:180});
+  assert.equal(settings.cornerText,'Roll 123');
+  assert.equal(settings.cornerSize,100);
+  assert.equal(settings.cornerThickness,2);
+  assert.equal(settings.cornerUnderline,true);
+  assert.equal(settings.cornerAnchor,'bottom-left');
+  assert.equal(settings.cornerX,140);
+  assert.equal(settings.cornerY,180);
+});
+
+test('corner text renders plain or underlined independently from body headings', () => {
+  const calls=[];
+  const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(['text',...args]),strokeText:(...args)=>calls.push(['thick',...args]),beginPath(){},moveTo:(...args)=>calls.push(['start',...args]),lineTo:(...args)=>calls.push(['end',...args]),stroke:()=>calls.push(['underline'])};
+  const settings={...defaults,cornerText:'123',cornerAnchor:'top-right',cornerX:90,cornerY:65,cornerThickness:2};
+  drawCornerText(ctx,settings);
+  assert.deepEqual(calls[0],['text','123',PAGE.width-290,65,PAGE.width-102]);
+  assert.equal(calls.filter(c=>c[0]==='thick').length,1);
+  assert.equal(calls.filter(c=>c[0]==='underline').length,0);
+  calls.length=0;
+  drawCornerText(ctx,{...settings,cornerAnchor:'bottom-left',cornerUnderline:true});
+  assert.equal(calls[0][2],90);
+  assert.equal(calls[0][3],PAGE.height-65-settings.cornerSize*1.3);
+  assert.equal(calls.filter(c=>c[0]==='underline').length,1);
+  calls.length=0;
+  drawCornerText(ctx,{...settings,cornerText:''});
+  assert.equal(calls.length,0);
+});
+
+test('separate paper positions follow the background when cycling or reordering', () => {
+  let library=paperLibrary([{id:'a',margin:100,topMargin:100,cornerX:30},{id:'b',margin:200,topMargin:300,cornerX:180}],['a','b']);
+  library=updatePaperFit(library,'a',{margin:150,cornerX:60,cornerY:80});
+  const settings={...defaults,paper:'custom',paperItems:library.items};
+  assert.equal(writingAreaForPage(settings,0).x,150);
+  assert.equal(writingAreaForPage(settings,1).x,200);
+  assert.equal(writingAreaForPage(settings,2).x,150);
+  assert.equal(resolveItemFit(library.items[1],settings).cornerX,180);
+  const restored=paperLibrary(JSON.parse(JSON.stringify(library.library)),['b','a']);
+  assert.equal(restored.items[1].cornerX,60);
+  assert.equal(restored.items[1].cornerY,80);
+  assert.equal(restored.items[0].topMargin,300);
+});
 import { paperPlacement, writingArea, paperForPage, spacingJitter, lineHeight } from '../src/engine.js';
 import { layoutText, defaults, PAGE, random, normalizeSettings, configureFont, measureText, glyphAdvance } from '../src/engine.js';
 const measure = text => [...text].length * 20;

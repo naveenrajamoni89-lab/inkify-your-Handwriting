@@ -42,8 +42,7 @@ async function preparePaper(file) {
 }
 async function persist(result) {
   if(result) await store('put',{
-    library:result.library.map(({id,name,blob,paperFit,margin,topMargin,rightMargin,bottomMargin})=>
-      ({id,name,blob,...(paperFit!==undefined?{paperFit}:{}),...(margin!==undefined?{margin}:{}),...(topMargin!==undefined?{topMargin}:{}),...(rightMargin!==undefined?{rightMargin}:{}),...(bottomMargin!==undefined?{bottomMargin}:{})})),
+    library:result.library.map(({image,...record})=>record),
     selectedIds:result.selectedIds
   });
   else await store('delete');
