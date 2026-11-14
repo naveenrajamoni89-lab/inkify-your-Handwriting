@@ -16,7 +16,7 @@ export default function CornerControls({settings, setSettings, activePaper, onSa
     <label className="setting-row">Corner handwriting<select aria-label="Corner handwriting" value={settings.cornerStyle} onChange={e=>set('cornerStyle',e.target.value)}>{Object.entries(STYLES).map(([id,style])=><option key={id} value={id}>{style.name}</option>)}</select></label>
     <label className="setting-row">Corner ink<select aria-label="Corner ink" value={settings.cornerInk} onChange={e=>set('cornerInk',e.target.value)}>{Object.keys(INKS).map(id=><option key={id} value={id}>{id==='pen'?'Ballpoint navy':id}</option>)}</select></label>
     <div className="paper-margins">
-      {[['cornerSize','Corner font size',12,100,1,'px'],['cornerThickness','Corner stroke thickness',0,4,.1,'px']].map(([key,label,min,max,step,unit])=><label className="slider-label" key={key}>{label}<span>{settings[key]} {unit}</span><input aria-label={label} type="range" min={min} max={max} step={step} value={settings[key]} onChange={e=>set(key,+e.target.value)}/></label>)}
+      {[['cornerVariation','Handwriting variation per page',0,100,1,'%'],['cornerSize','Corner font size',12,100,1,'px'],['cornerThickness','Corner stroke thickness',0,4,.1,'px']].map(([key,label,min,max,step,unit])=><label className="slider-label" key={key}>{label}<span>{settings[key]} {unit}</span><input aria-label={label} type="range" min={min} max={max} step={step} value={settings[key]} onChange={e=>set(key,+e.target.value)}/></label>)}
     </div>
     <label className="setting-row">Decoration<select aria-label="Corner text decoration" value={settings.cornerUnderline?'underline':'plain'} onChange={e=>set('cornerUnderline',e.target.value==='underline')}><option value="plain">Plain</option><option value="underline">Hand-drawn underline</option></select></label>
     <p>{activePaper ? `Position saved separately for ${activePaper.name}. Navigate pages to adjust each paper.` : 'Position applies to built-in papers.'} Font size, thickness, and text apply to every page.</p>
@@ -24,7 +24,7 @@ export default function CornerControls({settings, setSettings, activePaper, onSa
     <div className="paper-margins">
       {[['cornerX','Horizontal inset',1228,90],['cornerY','Vertical inset',1748,65]].map(([key,label,max,fallback])=><label className="slider-label" key={key}>{label}<span>{position(key) ?? fallback} px</span><input aria-label={'Corner text '+label.toLowerCase()} type="range" min={0} max={max} value={position(key) ?? fallback} onChange={e=>move(key,+e.target.value)}/></label>)}
     </div>
-    <p>Drag the corner text on the preview, or use arrow keys when it is selected (Shift moves 10 px). Insets are measured from the selected page corner. Each page gets a slightly different hand-drawn underline.</p>
+    <p>Drag the corner text on the preview, or use arrow keys when it is selected (Shift moves 10 px). Insets are measured from the selected page corner. Each page gets naturally varied letters, spacing, ink pressure, and a different hand-drawn underline. Set handwriting variation to 0 for uniform text.</p>
     <button className="outline-button" onClick={()=>set('cornerText','')}>Clear corner text</button>
   </section>;
 }

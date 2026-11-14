@@ -20,7 +20,7 @@ defaults.showWritingArea = true;
 defaults.paperMode = 'cycle';
 defaults.spacingVariation = 3;
 Object.assign(defaults, { cornerText: '', cornerSize: 40, cornerThickness: .3, cornerUnderline: false, cornerAnchor: 'top-right', cornerX: 90, cornerY: 65 });
-Object.assign(defaults, {cornerStyle:'research',cornerInk:'pen',cornerIntensity:92});
+Object.assign(defaults, {cornerStyle:'research',cornerInk:'pen',cornerIntensity:92,cornerVariation:65});
 // Presets predate paper controls; keep their default layout compatible.
 for (const preset of Object.values(PRESETS)) Object.assign(preset.settings, { paperFit: 'contain', topMargin: 155 });
 
@@ -28,6 +28,7 @@ export function normalizeSettings(value = {}) {
   const result = { ...defaults };
   if (STYLES[value.cornerStyle]) result.cornerStyle = value.cornerStyle;
   if (INKS[value.cornerInk]) result.cornerInk = value.cornerInk;
+  if (Number.isFinite(value.cornerVariation)) result.cornerVariation = Math.max(0,Math.min(100,value.cornerVariation));
   if (Number.isFinite(value.cornerIntensity)) result.cornerIntensity = Math.max(40,Math.min(100,value.cornerIntensity));
   if (typeof value.cornerText === 'string') result.cornerText = value.cornerText.replace(/[\r\n]+/g, ' ').slice(0,120);
   if (typeof value.cornerUnderline === 'boolean') result.cornerUnderline = value.cornerUnderline;
@@ -296,10 +297,38 @@ export function drawCornerText(ctx, settings, pageIndex = 0) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillStyle = ctx.strokeStyle = INKS[settings.cornerInk ?? 'pen'];
   ctx.globalAlpha = (settings.cornerIntensity ?? 92)/100;
-  ctx.fillText(settings.cornerText,x,y,available);
-  if (settings.cornerThickness) {
-    ctx.lineWidth = settings.cornerThickness;
-    ctx.strokeText(settings.cornerText,x,y,available);
+  const amount = (settings.cornerVariation ?? 65)/100;
+  if (amount) {
+    const rand = random(19237 + pageIndex*7919);
+    const chars = [...settings.cornerText];
+    const advances = chars.map(char=>ctx.measureText(char).width*(1+(rand()-.5)*amount*.12));
+    const total = advances.reduce((sum,value)=>sum+value,0);
+    const padding = Math.min(size*.08,width*.08);
+    const fit = Math.max(0,width-padding*2)/Math.max(1,total);
+    let cursor = 0;
+    const slope = (rand()-.5)*amount*.012;
+    ctx.save(); ctx.translate(x+padding,y+size*.06); ctx.scale(fit,1);
+    chars.forEach((char,index)=>{
+      ctx.save();
+      ctx.translate(cursor,(rand()-.5)*amount*size*.07+cursor*fit*slope);
+      ctx.rotate((rand()-.5)*amount*.09);
+      ctx.scale(1,1-rand()*amount*.09);
+      ctx.globalAlpha = (settings.cornerIntensity ?? 92)/100*(1-rand()*amount*.18);
+      ctx.fillText(char,0,0);
+      if(settings.cornerThickness) {
+        ctx.lineWidth=settings.cornerThickness*(1-rand()*amount*.25);
+        ctx.strokeText(char,0,0);
+      }
+      ctx.restore();
+      cursor+=advances[index];
+    });
+    ctx.restore();
+  } else {
+    ctx.fillText(settings.cornerText,x,y,available);
+    if (settings.cornerThickness) {
+      ctx.lineWidth = settings.cornerThickness;
+      ctx.strokeText(settings.cornerText,x,y,available);
+    }
   }
   if (settings.cornerUnderline) {
     ctx.lineWidth = Math.max(1.2,settings.cornerThickness ?? 0);

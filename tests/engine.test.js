@@ -3,10 +3,26 @@ import assert from 'node:assert/strict';
 import { drawCornerText, cornerTextBounds, moveCornerText, resolveItemFit, writingAreaForPage } from '../src/engine.js';
 import { paperLibrary, updatePaperFit } from '../src/paper-library.js';
 
+test('corner letters vary on every page including repeated backgrounds, with stable redraws', () => {
+  const settings={...defaults,cornerText:'252U1R1210',cornerUnderline:false};
+  function render(page,extra={}) {
+    const calls=[];
+    const ctx={save(){},restore(){},measureText:text=>({width:text.length*20}),translate:(...p)=>calls.push(['position',...p]),scale:(...p)=>calls.push(['scale',...p]),rotate:p=>calls.push(['angle',p]),fillText:(...p)=>calls.push(['letter',...p,ctx.globalAlpha]),strokeText(){}};
+    drawCornerText(ctx,{...settings,...extra},page);
+    return calls;
+  }
+  const first=render(0);
+  assert.deepEqual(first,render(0),'Preview and export reproduce the same lettering');
+  for(let page=1;page<6;page++) assert.notDeepEqual(first,render(page));
+  assert.equal(first.filter(c=>c[0]==='letter').map(c=>c[1]).join(''),settings.cornerText);
+  assert.deepEqual(render(0,{cornerVariation:0}),render(1,{cornerVariation:0}));
+  assert.equal(normalizeSettings({cornerVariation:150}).cornerVariation,100);
+});
+
 test('hand-drawn corner underlines vary by page and stay stable for exports', () => {
   function stroke(pageIndex, weight=400) {
     const calls=[];
-    const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText(){},strokeText(){},beginPath(){},moveTo:(...p)=>calls.push(p),bezierCurveTo:(...p)=>calls.push(p),stroke(){}};
+    const ctx={save(){},restore(){},translate(){},scale(){},rotate(){},measureText:()=>({width:200}),fillText(){},strokeText(){},beginPath(){},moveTo:(...p)=>calls.push(p),bezierCurveTo:(...p)=>calls.push(p),stroke(){}};
     drawCornerText(ctx,{...defaults,cornerText:'252U1R1210',cornerUnderline:true,weight},pageIndex);
     return {calls,font:ctx.font};
   }
@@ -19,7 +35,7 @@ test('hand-drawn corner underlines vary by page and stay stable for exports', ()
 test('body handwriting controls do not change the separate corner label', () => {
   function render(body) {
     const calls=[];
-    const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(args),strokeText(){},beginPath(){},moveTo(){},bezierCurveTo(){},stroke(){}};
+    const ctx={save(){},restore(){},translate(){},scale(){},rotate(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(args),strokeText(){},beginPath(){},moveTo(){},bezierCurveTo(){},stroke(){}};
     drawCornerText(ctx,{...defaults,cornerText:'252U1R1210',...body});
     return {calls,font:ctx.font,ink:ctx.fillStyle,alpha:ctx.globalAlpha};
   }
@@ -61,8 +77,8 @@ test('corner text survives draft restoration with safe control bounds', () => {
 
 test('corner text renders plain or underlined independently from body headings', () => {
   const calls=[];
-  const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(['text',...args]),strokeText:(...args)=>calls.push(['thick',...args]),beginPath(){},moveTo:(...args)=>calls.push(['start',...args]),bezierCurveTo:(...args)=>calls.push(['curve',...args]),lineTo:(...args)=>calls.push(['end',...args]),stroke:()=>calls.push(['underline'])};
-  const settings={...defaults,cornerText:'123',cornerAnchor:'top-right',cornerX:90,cornerY:65,cornerThickness:2};
+  const ctx={save(){},restore(){},translate(){},scale(){},rotate(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(['text',...args]),strokeText:(...args)=>calls.push(['thick',...args]),beginPath(){},moveTo:(...args)=>calls.push(['start',...args]),bezierCurveTo:(...args)=>calls.push(['curve',...args]),lineTo:(...args)=>calls.push(['end',...args]),stroke:()=>calls.push(['underline'])};
+  const settings={...defaults,cornerText:'123',cornerVariation:0,cornerAnchor:'top-right',cornerX:90,cornerY:65,cornerThickness:2};
   drawCornerText(ctx,settings);
   assert.deepEqual(calls[0],['text','123',PAGE.width-290,65,PAGE.width-102]);
   assert.equal(calls.filter(c=>c[0]==='thick').length,1);
