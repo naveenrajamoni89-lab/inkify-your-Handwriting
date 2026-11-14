@@ -1,7 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drawCornerText, resolveItemFit, writingAreaForPage } from '../src/engine.js';
+import { drawCornerText, cornerTextBounds, moveCornerText, resolveItemFit, writingAreaForPage } from '../src/engine.js';
 import { paperLibrary, updatePaperFit } from '../src/paper-library.js';
+
+test('hand-drawn corner underlines vary by page and stay stable for exports', () => {
+  function stroke(pageIndex, weight=400) {
+    const calls=[];
+    const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText(){},strokeText(){},beginPath(){},moveTo:(...p)=>calls.push(p),bezierCurveTo:(...p)=>calls.push(p),stroke(){}};
+    drawCornerText(ctx,{...defaults,cornerText:'252U1R1210',cornerUnderline:true,weight},pageIndex);
+    return {calls,font:ctx.font};
+  }
+  assert.deepEqual(stroke(0),stroke(0));
+  assert.notDeepEqual(stroke(0).calls,stroke(1).calls);
+  assert.deepEqual(stroke(0,700),stroke(0,400),'Body font weight does not alter corner text');
+  assert.equal(stroke(0).calls[1].length,6,'Underline uses a cubic pen curve');
+});
+
+test('dragging corner text works from all anchors and stays within the page', () => {
+  for(const cornerAnchor of ['top-left','top-right','bottom-left','bottom-right']) {
+    const settings={...defaults,cornerText:'123',cornerAnchor};
+    const ctx={measureText:()=>({width:200})};
+    const bounds=cornerTextBounds(ctx,settings);
+    const moved=moveCornerText(settings,bounds,20,30);
+    const next=cornerTextBounds(ctx,{...settings,...moved});
+    assert.equal(next.x,bounds.x+20);
+    assert.equal(next.y,bounds.y+30);
+    for (const [dx,dy] of [[-9999,-9999],[9999,9999]]) {
+      const position=moveCornerText(settings,bounds,dx,dy);
+      const restored=cornerTextBounds(ctx,normalizeSettings({...settings,...position}));
+      assert.ok(restored.x>=0 && restored.x+restored.width<=PAGE.width);
+      assert.ok(restored.y>=0 && restored.y+restored.height<=PAGE.height);
+    }
+  }
+});
 
 test('corner text survives draft restoration with safe control bounds', () => {
   const settings = normalizeSettings({cornerText:'Roll\n123',cornerSize:200,cornerThickness:2,cornerUnderline:true,cornerAnchor:'bottom-left',cornerX:140,cornerY:180});
@@ -16,7 +47,7 @@ test('corner text survives draft restoration with safe control bounds', () => {
 
 test('corner text renders plain or underlined independently from body headings', () => {
   const calls=[];
-  const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(['text',...args]),strokeText:(...args)=>calls.push(['thick',...args]),beginPath(){},moveTo:(...args)=>calls.push(['start',...args]),lineTo:(...args)=>calls.push(['end',...args]),stroke:()=>calls.push(['underline'])};
+  const ctx={save(){},restore(){},measureText:()=>({width:200}),fillText:(...args)=>calls.push(['text',...args]),strokeText:(...args)=>calls.push(['thick',...args]),beginPath(){},moveTo:(...args)=>calls.push(['start',...args]),bezierCurveTo:(...args)=>calls.push(['curve',...args]),lineTo:(...args)=>calls.push(['end',...args]),stroke:()=>calls.push(['underline'])};
   const settings={...defaults,cornerText:'123',cornerAnchor:'top-right',cornerX:90,cornerY:65,cornerThickness:2};
   drawCornerText(ctx,settings);
   assert.deepEqual(calls[0],['text','123',PAGE.width-290,65,PAGE.width-102]);

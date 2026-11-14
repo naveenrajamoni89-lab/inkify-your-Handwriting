@@ -16,12 +16,12 @@ export default function CornerControls({settings, setSettings, activePaper, onSa
     <div className="paper-margins">
       {[['cornerSize','Corner font size',12,100,1,'px'],['cornerThickness','Corner stroke thickness',0,4,.1,'px']].map(([key,label,min,max,step,unit])=><label className="slider-label" key={key}>{label}<span>{settings[key]} {unit}</span><input aria-label={label} type="range" min={min} max={max} step={step} value={settings[key]} onChange={e=>set(key,+e.target.value)}/></label>)}
     </div>
-    <label className="setting-row">Decoration<select aria-label="Corner text decoration" value={settings.cornerUnderline?'underline':'plain'} onChange={e=>set('cornerUnderline',e.target.value==='underline')}><option value="plain">Plain</option><option value="underline">Underlined</option></select></label>
+    <label className="setting-row">Decoration<select aria-label="Corner text decoration" value={settings.cornerUnderline?'underline':'plain'} onChange={e=>set('cornerUnderline',e.target.value==='underline')}><option value="plain">Plain</option><option value="underline">Hand-drawn underline</option></select></label>
     <p>{activePaper ? `Position saved separately for ${activePaper.name}. Navigate pages to adjust each paper.` : 'Position applies to built-in papers.'} Font size, thickness, and text apply to every page.</p>
     <label className="setting-row">Corner<select aria-label="Corner text position" value={position('cornerAnchor') ?? 'top-right'} onChange={e=>move('cornerAnchor',e.target.value)}>{[['top-right','Top right'],['top-left','Top left'],['bottom-right','Bottom right'],['bottom-left','Bottom left']].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
     <div className="paper-margins">
-      {[['cornerX','Horizontal inset',1100,90],['cornerY','Vertical inset',1600,65]].map(([key,label,max,fallback])=><label className="slider-label" key={key}>{label}<span>{position(key) ?? fallback} px</span><input aria-label={'Corner text '+label.toLowerCase()} type="range" min={0} max={max} value={position(key) ?? fallback} onChange={e=>move(key,+e.target.value)}/></label>)}
+      {[['cornerX','Horizontal inset',1228,90],['cornerY','Vertical inset',1748,65]].map(([key,label,max,fallback])=><label className="slider-label" key={key}>{label}<span>{position(key) ?? fallback} px</span><input aria-label={'Corner text '+label.toLowerCase()} type="range" min={0} max={max} value={position(key) ?? fallback} onChange={e=>move(key,+e.target.value)}/></label>)}
     </div>
-    <p>Insets are measured from the selected page corner. Adjust body margins below to keep the label clear of your writing.</p>
+    <p>Drag the corner text on the preview, or use arrow keys when it is selected (Shift moves 10 px). Insets are measured from the selected page corner. Each page gets a slightly different hand-drawn underline. Adjust body margins below to keep the label clear of your writing.</p>
   </section>;
 }

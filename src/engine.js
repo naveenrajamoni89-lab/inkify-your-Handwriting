@@ -28,7 +28,7 @@ export function normalizeSettings(value = {}) {
   if (typeof value.cornerText === 'string') result.cornerText = value.cornerText.replace(/[\r\n]+/g, ' ').slice(0,120);
   if (typeof value.cornerUnderline === 'boolean') result.cornerUnderline = value.cornerUnderline;
   if (['top-left','top-right','bottom-left','bottom-right'].includes(value.cornerAnchor)) result.cornerAnchor = value.cornerAnchor;
-  for (const [key,min,max] of [['cornerSize',12,100],['cornerThickness',0,4],['cornerX',0,1100],['cornerY',0,1600]]) {
+  for (const [key,min,max] of [['cornerSize',12,100],['cornerThickness',0,4],['cornerX',0,1228],['cornerY',0,1748]]) {
     if (Number.isFinite(value[key])) result[key] = Math.max(min, Math.min(max,value[key]));
   }
   for (const [key, min, max] of [['size', 12, 64], ['spacing', 12, 100], ['margin', 30, 350], ['weight', 400, 700], ['slant', -15, 15], ['width', 0.8, 1.3], ['tracking', 0, 6], ['wordGap', 0, 24], ['variation', 0, 100], ['rotation',0,6], ['baseline',0,6], ['intensity',40,100], ['thickness',0,1], ['consistency',0,100], ['exportScale',1,2], ['spacingVariation',0,3]]) {
@@ -263,18 +263,32 @@ export function paperPlacement(width, height, fit = 'contain') {
   const scale=(fit==='cover'?Math.max:Math.min)(PAGE.width/width,PAGE.height/height);
   return {x:(PAGE.width-width*scale)/2,y:(PAGE.height-height*scale)/2,width:width*scale,height:height*scale};
 }
-export function drawCornerText(ctx, settings) {
-  if (!settings.cornerText?.trim()) return;
-  ctx.save();
+export function cornerTextBounds(ctx, settings) {
   const size = settings.cornerSize ?? 40;
-  configureFont(ctx, {...settings,size});
+  configureFont(ctx, {...settings,size,weight:400});
   const right = (settings.cornerAnchor ?? 'top-right').endsWith('right');
   const bottom = (settings.cornerAnchor ?? 'top-right').startsWith('bottom');
   const insetX = settings.cornerX ?? 90, insetY = settings.cornerY ?? 65;
   const available = Math.max(1, PAGE.width-insetX-12);
-  const width = Math.min(ctx.measureText(settings.cornerText).width,available);
+  const width = Math.min(ctx.measureText(settings.cornerText || '').width,available);
   const x = right ? PAGE.width-insetX-width : insetX;
   const y = bottom ? PAGE.height-insetY-size*1.3 : insetY;
+  return {x:Math.max(0,x),y:Math.max(0,Math.min(PAGE.height-size*1.3-6,y)),width,height:size*1.3,size,available,right,bottom};
+}
+
+export function moveCornerText(settings, bounds, dx, dy) {
+  const x = Math.max(0,Math.min(PAGE.width-bounds.width-12,bounds.x+dx));
+  const y = Math.max(0,Math.min(PAGE.height-bounds.height-6,bounds.y+dy));
+  return {
+    cornerX: Math.round(bounds.right ? PAGE.width-x-bounds.width : x),
+    cornerY: Math.round(bounds.bottom ? PAGE.height-y-bounds.height : y),
+  };
+}
+
+export function drawCornerText(ctx, settings, pageIndex = 0) {
+  if (!settings.cornerText?.trim()) return;
+  ctx.save();
+  const {x,y,width,size,available} = cornerTextBounds(ctx,settings);
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillStyle = ctx.strokeStyle = INKS[settings.ink];
   ctx.globalAlpha = (settings.intensity ?? 92)/100;
@@ -285,7 +299,15 @@ export function drawCornerText(ctx, settings) {
   }
   if (settings.cornerUnderline) {
     ctx.lineWidth = Math.max(1.2,settings.cornerThickness ?? 0);
-    ctx.beginPath(); ctx.moveTo(x,y+size*1.25); ctx.lineTo(x+width,y+size*1.25); ctx.stroke();
+    // A stable seed gives every page its own pen stroke and keeps exports identical.
+    const rand = random(7351 + pageIndex * 997);
+    const baseline = y + size*1.18;
+    const start = baseline + (rand()-.5)*3;
+    const end = baseline + (rand()-.5)*4;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x,start);
+    ctx.bezierCurveTo(x+width*.32, baseline+2+rand()*3, x+width*.72, baseline-1-rand()*3, x+width,end);
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -381,7 +403,7 @@ export function renderPage(canvas, lines, settings, pageIndex = 0, resolution = 
     }
   });
   ctx.restore();
-  drawCornerText(ctx, settings);
+  drawCornerText(ctx, settings, pageIndex);
   if(settings.paper!=='custom') {
     ctx.font = '18px sans-serif'; ctx.fillStyle = '#a9aaa7'; ctx.textAlign = 'center';
     ctx.fillText(String(pageIndex + 1), PAGE.width / 2, PAGE.height - 38);
