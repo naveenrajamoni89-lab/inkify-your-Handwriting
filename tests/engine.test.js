@@ -2,6 +2,68 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { drawCornerText, cornerTextBounds, moveCornerText, resolveItemFit, writingAreaForPage } from '../src/engine.js';
 import { paperLibrary, updatePaperFit } from '../src/paper-library.js';
+import {headingText,drawHeadingUnderline,drawPaperTexture,PRESETS} from '../src/engine.js';
+
+test('reference headings underline only their label and have varied stable pen strokes',()=>{
+  assert.equal(headingText('Data analysis: After collecting data',2,0),'Data analysis:');
+  assert.equal(headingText('Ordinary body sentence',2,0),'');
+  assert.equal(headingText('My title',0,0),'My title');
+  function render(seed) {
+    const calls=[];
+    const ctx={save(){},restore(){},beginPath(){},moveTo:(...p)=>calls.push(['start',...p]),lineTo:(...p)=>calls.push(['lead',...p]),bezierCurveTo:(...p)=>calls.push(['curve',...p]),stroke(){}};
+    drawHeadingUnderline(ctx,80,100,300,seed,'black');return calls;
+  }
+  assert.deepEqual(render(123),render(123));
+  assert.notDeepEqual(render(123),render(124));
+  for(const seed of [1,123,124,9127,10124]) {
+    const calls=render(seed);
+    const starts=calls.filter(c=>c[0]==='start');
+    const curves=calls.filter(c=>c[0]==='curve');
+    assert.ok(starts.length>4,'Underlines include several short pen movements');
+    assert.equal(curves.length,starts.length);
+    const joins=starts.slice(1).map((start,i)=>start[1]-curves[i][5]);
+    assert.ok(joins.some(gap=>gap>0 && gap<4),'Small pen lifts break the line');
+    assert.ok(joins.some(gap=>gap<0 && gap>-8),'Retraced segments overlap');
+    assert.ok(new Set(starts.map(start=>start[2])).size>4,'The hand drifts vertically');
+  }
+  assert.deepEqual(render(123).slice(0,4).map(c=>c[0]),['start','curve','start','curve']);
+});
+
+test('heading underlines keep the body ink and remain thin and subdued at its intensity',()=>{
+  for(const ink of ['#263070','#303440','#b4474e']) {
+    function strokes(intensity) {
+      const result=[];
+      const ctx={save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},bezierCurveTo(){},stroke(){result.push({ink:this.strokeStyle,width:this.lineWidth,alpha:this.globalAlpha});}};
+      drawHeadingUnderline(ctx,80,100,300,9127,ink,intensity);
+      return result;
+    }
+    const normal=strokes(92),light=strokes(40);
+    assert.ok(normal.length>4);
+    normal.forEach((stroke,i)=>{
+      assert.equal(stroke.ink,ink);
+      assert.ok(stroke.width>=.65 && stroke.width<=.9);
+      assert.ok(stroke.alpha<.92);
+      assert.ok(light[i].alpha<stroke.alpha);
+    });
+  }
+});
+
+test('paper texture is repeatable, optional, and reference effects survive saving',()=>{
+  function texture(strength,seed) {
+    let count=0,signature=0;
+    const ctx={save(){},restore(){},fillRect:(x,y)=>{count++;signature+=x+y;},beginPath(){},moveTo(){},lineTo(){},stroke(){}};
+    drawPaperTexture(ctx,strength,seed);return {count,signature};
+  }
+  assert.equal(texture(0,1).count,0);
+  assert.deepEqual(texture(55,1),texture(55,1));
+  assert.notDeepEqual(texture(55,1),texture(55,2));
+  const restored=normalizeSettings(PRESETS.reference.settings);
+  assert.equal(restored.penMarks,25);
+  assert.equal(restored.textureStrength,55);
+  assert.equal(restored.finish,'photo');
+  assert.equal(normalizeSettings({penMarks:500,textureStrength:-20}).penMarks,100);
+  assert.equal(normalizeSettings({penMarks:500,textureStrength:-20}).textureStrength,0);
+});
 
 test('corner letters vary on every page including repeated backgrounds, with stable redraws', () => {
   const settings={...defaults,cornerText:'252U1R1210',cornerUnderline:false};
@@ -87,7 +149,7 @@ test('corner text renders plain or underlined independently from body headings',
   drawCornerText(ctx,{...settings,cornerAnchor:'bottom-left',cornerUnderline:true});
   assert.equal(calls[0][2],90);
   assert.equal(calls[0][3],PAGE.height-65-settings.cornerSize*1.3);
-  assert.equal(calls.filter(c=>c[0]==='underline').length,1);
+  assert.ok(calls.filter(c=>c[0]==='underline').length>1);
   calls.length=0;
   drawCornerText(ctx,{...settings,cornerText:''});
   assert.equal(calls.length,0);

@@ -21,11 +21,14 @@ defaults.paperMode = 'cycle';
 defaults.spacingVariation = 3;
 Object.assign(defaults, { cornerText: '', cornerSize: 40, cornerThickness: .3, cornerUnderline: false, cornerAnchor: 'top-right', cornerX: 90, cornerY: 65 });
 Object.assign(defaults, {cornerStyle:'research',cornerInk:'pen',cornerIntensity:92,cornerVariation:65});
+Object.assign(defaults, {penMarks:0,textureStrength:35});
+PRESETS.reference = {name:'Photographed research notes',settings:{...defaults,finish:'photo',headings:true,penMarks:25,textureStrength:55,ink:'black',variation:72,baseline:2,rotation:3,consistency:80}};
 // Presets predate paper controls; keep their default layout compatible.
 for (const preset of Object.values(PRESETS)) Object.assign(preset.settings, { paperFit: 'contain', topMargin: 155 });
 
 export function normalizeSettings(value = {}) {
   const result = { ...defaults };
+  for(const key of ['penMarks','textureStrength']) if(Number.isFinite(value[key])) result[key]=Math.max(0,Math.min(100,value[key]));
   if (STYLES[value.cornerStyle]) result.cornerStyle = value.cornerStyle;
   if (INKS[value.cornerInk]) result.cornerInk = value.cornerInk;
   if (Number.isFinite(value.cornerVariation)) result.cornerVariation = Math.max(0,Math.min(100,value.cornerVariation));
@@ -331,16 +334,71 @@ export function drawCornerText(ctx, settings, pageIndex = 0) {
     }
   }
   if (settings.cornerUnderline) {
-    ctx.lineWidth = Math.max(1.2,settings.cornerThickness ?? 0);
-    // A stable seed gives every page its own pen stroke and keeps exports identical.
-    const rand = random(7351 + pageIndex * 997);
-    const baseline = y + size*1.18;
-    const start = baseline + (rand()-.5)*3;
-    const end = baseline + (rand()-.5)*4;
-    ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x,start);
-    ctx.bezierCurveTo(x+width*.32, baseline+2+rand()*3, x+width*.72, baseline-1-rand()*3, x+width,end);
-    ctx.stroke();
+    drawPenUnderline(ctx,x,y+size*1.18,width,7351+pageIndex*997,
+      INKS[settings.cornerInk ?? 'pen'],settings.cornerIntensity ?? 92,1,
+      Math.max(1.2,settings.cornerThickness ?? 0));
+  }
+  ctx.restore();
+}
+
+export function headingText(line, row, pageIndex) {
+  if(row===0 && pageIndex===0) return line;
+  const prefix=line.match(/^(.{2,90}?):/);
+  return prefix ? prefix[0] : '';
+}
+
+export function drawHeadingUnderline(ctx, x, y, width, seed, ink, intensity = 92) {
+  drawPenUnderline(ctx,x,y,width,seed,ink,intensity,2,.85);
+}
+
+function drawPenUnderline(ctx, x, y, width, seed, ink, intensity, passes, thickness) {
+  if(width<=0) return;
+  const rand=random(Math.imul(seed,2654435761));
+  ctx.save(); ctx.strokeStyle=ink; ctx.lineCap='round';
+  const amplitude=Math.min(2.4,width*.025);
+  const phase=rand()*Math.PI*2;
+  const drift=(rand()-.5)*3;
+  // Independent hand movements let the paired lines converge and overlap.
+  for(let pass=0;pass<passes;pass++) {
+    const wave=phase+pass*(.7+rand());
+    const base=y+pass*(2+rand());
+    const randSlope=(rand()-.5)*4;
+    const heightAt=t=>base+Math.sin(t*Math.PI*(2.2+pass*.6)+wave)*amplitude
+      +t*(drift+(pass ? randSlope : 0));
+    let cursor=0, segment=0;
+    while(cursor<width) {
+      const length=Math.min(width-cursor,Math.max(8,Math.min(width*.38,38+rand()*72)));
+      const end=cursor+length;
+      const startY=heightAt(cursor/width)+(rand()-.5)*.8;
+      const endY=heightAt(end/width)+(rand()-.5)*.8;
+      ctx.lineWidth=thickness*(.77+rand()*.28);
+      ctx.globalAlpha=Math.max(0,Math.min(1,intensity/100))*(.61+rand()*.22);
+      ctx.beginPath();ctx.moveTo(x+cursor,startY);
+      ctx.bezierCurveTo(x+cursor+length*.3,startY+(rand()-.5)*1.8,
+        x+cursor+length*.7,endY+(rand()-.5)*1.8,x+end,endY);
+      ctx.stroke();
+      if(end>=width) break;
+      // Alternate tiny pen lifts with a short retrace; avoid regular dash spacing.
+      cursor=end+(segment++%3===0 ? 1+rand()*2.2 : -(1+rand()*Math.min(6,length*.2)));
+    }
+  }
+  ctx.restore();
+}
+
+export function drawPaperTexture(ctx, strength, seed) {
+  if(!strength) return;
+  const rand=random(seed), amount=strength/100;
+  ctx.save();
+  for(let i=0;i<18000;i++) {
+    ctx.fillStyle=rand()<.5?'#827d70':'#ffffff';
+    ctx.globalAlpha=(.015+rand()*.07)*amount;
+    ctx.fillRect(rand()*PAGE.width,rand()*PAGE.height,.4+rand()*1.2,.4+rand()*1.2);
+  }
+  ctx.strokeStyle='#8d897d';ctx.lineWidth=.4;
+  for(let i=0;i<1500;i++) {
+    const x=rand()*PAGE.width,y=rand()*PAGE.height;
+    ctx.globalAlpha=(.015+rand()*.045)*amount;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+1+rand()*5,y+(rand()-.5)*2);ctx.stroke();
   }
   ctx.restore();
 }
@@ -361,11 +419,11 @@ export function renderPage(canvas, lines, settings, pageIndex = 0, resolution = 
     ctx.drawImage(settings.paperImage,p.x,p.y,p.width,p.height);
   } else if(settings.paper !== 'custom' && settings.finish && settings.finish !== 'white') {
     ctx.fillStyle='#f7f6ef'; ctx.fillRect(0,0,PAGE.width,PAGE.height);
-    for(let i=0;i<22000;i++){ctx.fillStyle=`rgba(70,60,40,${rand()*0.045})`;ctx.fillRect(rand()*PAGE.width,rand()*PAGE.height,1,1);}
     if(settings.finish === 'photo') {
       const light=ctx.createLinearGradient(0,0,PAGE.width,PAGE.height);light.addColorStop(0,'rgba(255,255,255,0.25)');light.addColorStop(.55,'rgba(255,255,255,0)');light.addColorStop(1,'rgba(40,42,50,0.12)');ctx.fillStyle=light;ctx.fillRect(0,0,PAGE.width,PAGE.height);
     }
   }
+  if(settings.finish && settings.finish!=='white') drawPaperTexture(ctx,settings.textureStrength ?? 35,4513+pageIndex*997);
   // Auto edge fade: soft vignette on all 4 edges for a natural paper-scan look.
   const edgeW=38,edgeH=50;
   const edgeL=ctx.createLinearGradient(0,0,edgeW,0);edgeL.addColorStop(0,'rgba(30,35,40,.10)');edgeL.addColorStop(1,'rgba(30,35,40,0)');ctx.fillStyle=edgeL;ctx.fillRect(0,0,edgeW,PAGE.height);
@@ -398,9 +456,10 @@ export function renderPage(canvas, lines, settings, pageIndex = 0, resolution = 
   const skew = Math.tan((settings.slant ?? 0) * Math.PI / 180);
   // Pre-compute a unique per-line vertical nudge (1–3 px) so each line sits at a
   // slightly different height — no two lines share the same gap, like real handwriting.
-  const lineNudges = lines.map(() => (rand() * 2 + 1) * (rand() < 0.5 ? 1 : -1));
+  const lineNudges = lines.map(() => settings.realism ? (rand() * 2 + 1) * (rand() < 0.5 ? 1 : -1) : 0);
   lines.forEach((line, row) => {
     let x = left + (rand() - 0.5) * amount * 8;
+    const lineStart=x;
     const drift = (rand() - 0.5) * amount * 5;
     const slope = (rand() - 0.5) * amount * 0.008;
     let phase = rand() * Math.PI * 2;
@@ -427,12 +486,20 @@ export function renderPage(canvas, lines, settings, pageIndex = 0, resolution = 
         ctx.fillText(char, 0, 0);
         if(settings.thickness) {ctx.strokeStyle=INKS[settings.ink];ctx.lineWidth=settings.thickness*(1-rand()*amount*.35);ctx.strokeText(char,0,0);}
       }
+      if(amount && char.trim() && (settings.penMarks ?? 0)>0 && rand()<(settings.penMarks/100)*.055) {
+        // Tiny ink deposits and a short pen-lift tail, kept beside the current glyph.
+        ctx.save();ctx.globalAlpha=.25+rand()*.35;ctx.fillStyle=INKS[settings.ink];
+        ctx.fillRect(rand()*2,-settings.size*.08,.5+rand()*.7,.5+rand()*.5);
+        ctx.strokeStyle=INKS[settings.ink];ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(1+rand()*2,rand()*2);ctx.stroke();ctx.restore();
+      }
       ctx.restore();
       // Bounded positive spacing variation stays inside the layout's conservative width.
       x += glyphAdvance(ctx, char, settings) * (1 + rand() * amount * (1-(settings.consistency ?? 70)/100) * .08) + spacingJitter(settings,rand());
     }
-    if(settings.headings && line.length && (line.endsWith(':') || (row===0 && pageIndex===0))) {
-      ctx.save();ctx.strokeStyle=INKS[settings.ink];ctx.lineWidth=1.2;ctx.globalAlpha=.8;ctx.beginPath();ctx.moveTo(left,lineY+9);ctx.quadraticCurveTo((left+x)/2,lineY+12,x,lineY+8);ctx.stroke();ctx.restore();
+    const heading=settings.headings ? headingText(line,row,pageIndex) : '';
+    if(heading) {
+      const ratio=heading===line?1:Math.min(1,measureText(ctx,heading,settings)/Math.max(1,measureText(ctx,line,settings)));
+      drawHeadingUnderline(ctx,lineStart,lineY+8,(x-lineStart)*ratio,9127+pageIndex*997+row*137,INKS[settings.ink],settings.intensity ?? 92);
     }
   });
   ctx.restore();
